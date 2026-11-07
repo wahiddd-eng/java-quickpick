@@ -1,4 +1,4 @@
-import '@quickpick/shared/src/base.css';
+import '@fontsource-variable/instrument-sans';
 import './styles.css';
 import React from 'react';
 import { createRoot } from 'react-dom/client';

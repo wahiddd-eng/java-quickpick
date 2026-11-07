@@ -3,7 +3,7 @@
   "short_name": "Java QuickPick",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fbf7f2",
-  "theme_color": "#a8481a",
+  "background_color": "#ffffff",
+  "theme_color": "#0e6b4e",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
 }
