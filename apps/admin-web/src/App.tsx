@@ -1,10 +1,13 @@
-import { ApiError, ORDER_STATUS_LABEL, createApiClient, formatPaise, type OrderStatus, type OrderView } from '@quickpick/shared';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { ApiError, ORDER_STATUS_LABEL, PAYMENT_STATUS_LABEL, type PaymentStatus, createApiClient, formatPaise, type OrderStatus, type OrderView } from '@quickpick/shared';
+import React, { useCallback, useEffect, useState, type ReactNode } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 const api = createApiClient({ baseUrl: API_URL, tokenKey: 'qp_admin_token', onUnauthorized: () => window.dispatchEvent(new Event('qp-logout')) });
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : 'Something went wrong.');
-const dt = (s: string) => new Date(s).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: true });
+const dt = (s: string) => new Date(s).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
+const cap = (s: string) => (s ? s[0] + s.slice(1).toLowerCase().replace(/_/g, ' ') : s);
+const ostatus = (s: string) => ORDER_STATUS_LABEL[s as OrderStatus] ?? cap(s);
+const pstatus = (s: string) => PAYMENT_STATUS_LABEL[s as PaymentStatus] ?? cap(s);
 const rupeesToPaise = (v: string) => Math.round(parseFloat(v) * 100);
 
 type Tab = 'overview' | 'orders' | 'shops' | 'menu' | 'vendors' | 'devices' | 'pricing' | 'payments' | 'support' | 'audit';
@@ -28,14 +31,15 @@ export function App() {
 
   return (
     <>
-      <div className="sandbox-banner">SANDBOX — real payments are disabled pending FSSAI / GST (CA) / payment-provider / SRM approvals</div>
+      <div className="sandbox-banner">Test mode: real payments stay off until FSSAI, GST (CA), payment-provider and SRM approvals are in place</div>
       <div className="layout">
         <nav className="side" aria-label="Sections">
-          <h1>☕ QuickPick Admin</h1>
-          {TABS.map(([k, label]) => <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{label}</button>)}
-          <div style={{ flex: 1 }} />
-          <div className="small muted" style={{ padding: '0 8px' }}>{user.name} · {user.role}</div>
-          <button onClick={() => { api.clearToken(); setUser(null); }}>Sign out</button>
+          <div className="brand"><span className="mark" aria-hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9h13v4a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6V9Z" /><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17" /><path d="M8 3v3M12 3v3" /></svg></span><div><b>QuickPick</b><span>Admin console</span></div></div>
+          <div className="side-links">{TABS.map(([k, label]) => <button key={k} className={tab === k ? 'active' : ''} aria-current={tab === k ? 'page' : undefined} onClick={() => setTab(k)}>{label}</button>)}</div>
+          <div className="side-foot">
+            <div className="who"><b>{user.name}</b><span>{user.role === 'SUPER_ADMIN' ? 'Platform owner' : 'Admin'}</span></div>
+            <button onClick={() => { api.clearToken(); setUser(null); }}>Sign out</button>
+          </div>
         </nav>
         <main className="main">
           {tab === 'overview' && <Overview />}
@@ -58,7 +62,8 @@ function Login({ onDone }: { onDone: (u: { name: string; role: string }) => void
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
-  const submit = async () => {
+  const submit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setErr('');
     try {
       const r = await api.post<{ token: string; user: { name: string; role: string } }>('/auth/login', { email, password });
@@ -67,14 +72,15 @@ function Login({ onDone }: { onDone: (u: { name: string; role: string }) => void
     } catch (e) { setErr(errMsg(e)); }
   };
   return (
-    <div style={{ maxWidth: 400, margin: '60px auto', padding: '0 16px' }} className="stack">
-      <h1>☕ QuickPick Admin</h1>
-      <div className="card stack">
-        <div className="field"><label htmlFor="e">Email</label><input id="e" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-        <div className="field"><label htmlFor="p">Password</label><input id="p" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} /></div>
+    <div className="admin-login">
+      <form className="card stack" onSubmit={submit}>
+        <div className="brand dark"><span className="mark" aria-hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9h13v4a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6V9Z" /><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17" /><path d="M8 3v3M12 3v3" /></svg></span><div><b>QuickPick</b><span>Admin console</span></div></div>
+        <h1>Sign in</h1>
+        <div className="field"><label htmlFor="e">Email</label><input id="e" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+        <div className="field"><label htmlFor="p">Password</label><input id="p" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
         {err && <div className="error" role="alert">{err}</div>}
-        <button className="primary" onClick={submit}>Sign in</button>
-      </div>
+        <button className="primary">Sign in</button>
+      </form>
     </div>
   );
 }
@@ -88,7 +94,7 @@ function useLoad<T>(path: string, deps: unknown[] = []) {
   return { data, err, reload };
 }
 const Section = ({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) => (
-  <section className="card stack"><div className="row between wrap"><h2 style={{ margin: 0 }}>{title}</h2>{right}</div>{children}</section>
+  <section className="card stack"><div className="section-head"><h2>{title}</h2>{right}</div>{children}</section>
 );
 const Err = ({ msg }: { msg: string }) => (msg ? <div className="error" role="alert">{msg}</div> : null);
 const tone = (s: string) => (['COLLECTED', 'SUCCEEDED', 'REFUNDED', 'PROCESSED', 'ACTIVE', 'RESOLVED'].includes(s) ? 'ok' : ['REJECTED', 'CANCELLED', 'EXPIRED', 'FAILED', 'SUSPENDED', 'NOT_COLLECTED'].includes(s) ? 'bad' : 'warn');
@@ -107,16 +113,16 @@ function Overview() {
     } catch (e) { setCsvErr(errMsg(e)); }
   };
   return (
-    <Section title={`Today · ${data?.date ?? ''}`} right={<button onClick={download}>Export today’s orders (CSV)</button>}>
+    <Section title={`Today${data?.date ? `, ${data.date}` : ''}`} right={<button onClick={download}>Export today’s orders (CSV)</button>}>
       <Err msg={err || csvErr} />
       {data && (
         <div className="kpis">
           {[['Orders', data.orders], ['Paid orders', data.paidOrders], ['Food GMV', formatPaise(data.foodGmvPaise)], ['Gross QuickPick fees', formatPaise(data.grossFeePaise)], ['Cancelled / rejected', data.cancelledOrders], ['Refunded', data.refundedOrders], ['Active shops', data.activeShops]].map(([l, v]) => (
-            <div className="card kpi" key={String(l)}><div className="big">{v}</div><div className="muted small">{l}</div></div>
+            <div className="kpi" key={String(l)}><span>{l}</span><b className="num">{v}</b></div>
           ))}
         </div>
       )}
-      <p className="muted small">Gross fee is not profit — payment costs, taxes, refunds, hosting, tablets and support are not deducted. All figures are sandbox data.</p>
+      <p className="muted small">Gross fees are not profit: payment costs, taxes, refunds, hosting, tablets and support are not deducted. All figures are sandbox data.</p>
     </Section>
   );
 }
@@ -131,7 +137,7 @@ function Orders() {
       <Err msg={err} />
       <div className="table-wrap"><table><thead><tr><th>Order</th><th>Shop</th><th>Status</th><th>Payment</th><th>Subtotal</th><th>Fee</th><th>Total</th><th>Pickup</th><th /></tr></thead><tbody>
         {data?.orders.map((o) => (
-          <tr key={o.id}><td><b>{o.orderNumber}</b></td><td>{o.shopName}</td><td><span className={'badge ' + tone(o.status)}>{o.status}</span></td><td>{o.paymentStatus}</td><td className="price">{formatPaise(o.subtotalPaise)}</td><td className="price">{formatPaise(o.feePaise)}</td><td className="price">{formatPaise(o.totalPaise)}</td><td>{dt(o.slotStartsAt)}</td><td><button className="small" onClick={() => setOpen(open === o.id ? null : o.id)}>{open === o.id ? 'Hide' : 'Details'}</button></td></tr>
+          <tr key={o.id}><td><b>{o.orderNumber}</b></td><td>{o.shopName}</td><td><span className={'badge ' + tone(o.status)}>{ostatus(o.status)}</span></td><td>{pstatus(o.paymentStatus)}</td><td className="price">{formatPaise(o.subtotalPaise)}</td><td className="price">{formatPaise(o.feePaise)}</td><td className="price">{formatPaise(o.totalPaise)}</td><td>{dt(o.slotStartsAt)}</td><td><button className="small" onClick={() => setOpen(open === o.id ? null : o.id)}>{open === o.id ? 'Hide' : 'Details'}</button></td></tr>
         ))}
         {data?.orders.length === 0 && <tr><td colSpan={9} className="muted">No orders.</td></tr>}
       </tbody></table></div>
@@ -154,14 +160,14 @@ function OrderDetail({ id, onChange }: { id: string; onChange: () => void }) {
     } catch (e) { setMsg(errMsg(e)); }
   };
   return (
-    <div className="card stack" style={{ background: '#faf6f1' }}>
-      <h3>{data.order.orderNumber} — timeline</h3>
-      <ul className="timeline">{data.events.map((e: any, i: number) => <li key={i}>{dt(e.at)} · <b>{e.to}</b> <span className="muted">by {e.actor}{e.reason ? ` — ${e.reason}` : ''}</span></li>)}</ul>
+    <div className="card stack" style={{ background: 'var(--canvas)' }}>
+      <h3>{data.order.orderNumber} timeline</h3>
+      <ul className="timeline">{data.events.map((e: any, i: number) => <li key={i}><b>{ostatus(e.to)}</b> <span className="muted">{dt(e.at)}, by {cap(e.actor)}{e.reason ? `: ${e.reason}` : ''}</span></li>)}</ul>
       <div className="grid2">
         <div><h3>Fee breakdown</h3><p>Food {formatPaise(data.order.subtotalPaise)}<br />Fee ({data.order.feeRateBps / 100}%) {formatPaise(data.order.feePaise)}<br />Tax {formatPaise(data.order.taxPaise)}<br /><b>Total {formatPaise(data.order.totalPaise)}</b></p></div>
-        <div><h3>Payments</h3>{data.payments.map((p: any) => <p key={p.id} className="small">{p.provider} · <span className="mono">{p.providerRef}</span><br />{formatPaise(p.amountPaise)} · {p.status}</p>)}{data.payments.length === 0 && <p className="muted small">None</p>}</div>
-        <div><h3>Planned split</h3>{data.splits.map((s: any) => <p key={s.beneficiary} className="small">{s.beneficiary}: {formatPaise(s.amountPaise)} ({s.status})</p>)}{data.splits.length === 0 && <p className="muted small">None</p>}</div>
-        <div><h3>Refunds</h3>{data.refunds.map((r: any) => <p key={r.id} className="small">{formatPaise(r.amountPaise)} · {r.status} · {r.reason}</p>)}{data.refunds.length === 0 && <p className="muted small">None</p>}</div>
+        <div><h3>Payments</h3>{data.payments.map((p: any) => <p key={p.id} className="small">{cap(p.provider)} <span className="mono">{p.providerRef}</span><br />{formatPaise(p.amountPaise)}, {pstatus(p.status)}</p>)}{data.payments.length === 0 && <p className="muted small">None</p>}</div>
+        <div><h3>Planned split</h3>{data.splits.map((s: any) => <p key={s.beneficiary} className="small">{cap(s.beneficiary)}: {formatPaise(s.amountPaise)} <span className="muted">({cap(s.status)})</span></p>)}{data.splits.length === 0 && <p className="muted small">None</p>}</div>
+        <div><h3>Refunds</h3>{data.refunds.map((r: any) => <p key={r.id} className="small">{formatPaise(r.amountPaise)}, {cap(r.status)}: {r.reason}</p>)}{data.refunds.length === 0 && <p className="muted small">None</p>}</div>
       </div>
       {['SUCCEEDED', 'PARTIALLY_REFUNDED'].includes(data.order.paymentStatus) && (
         <div className="row wrap"><input style={{ maxWidth: 140 }} placeholder="₹ (blank = all)" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Refund amount in rupees" /><input placeholder="Reason" value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Refund reason" /><button className="danger" disabled={!reason.trim()} onClick={refund}>Issue refund</button></div>
@@ -183,7 +189,7 @@ function Shops() {
       <Section title="Shops"><Err msg={err || msg} />
         <div className="table-wrap"><table><thead><tr><th>Shop</th><th>Status</th><th>Hours (IST)</th><th>Slot</th><th>Capacity / slot</th><th>Accept timeout</th><th>FSSAI</th><th /></tr></thead><tbody>
           {data?.shops.map((s) => (
-            <tr key={s.id}><td><b>{s.name}</b>{s.isDemo && <> <span className="badge info">demo</span></>}<div className="muted small">{s.description}</div></td><td><span className={'badge ' + tone(s.status)}>{s.status}</span>{!s.acceptingOrders && <> <span className="badge warn">paused</span></>}</td><td>{s.openTime}–{s.closeTime}</td><td>{s.slotMinutes} min</td>
+            <tr key={s.id}><td><b>{s.name}</b>{s.isDemo && <> <span className="badge info">demo</span></>}<div className="muted small">{s.description}</div></td><td><span className={'badge ' + tone(s.status)}>{cap(s.status)}</span>{!s.acceptingOrders && <> <span className="badge warn">paused</span></>}</td><td>{s.openTime}–{s.closeTime}</td><td>{s.slotMinutes} min</td>
               <td><input style={{ width: 80, minHeight: 36 }} type="number" min={0} defaultValue={s.slotCapacity} onBlur={(e) => Number(e.target.value) !== s.slotCapacity && patch(s.id, { slotCapacity: Number(e.target.value) })} aria-label={`Capacity for ${s.name}`} /></td><td>{s.acceptTimeoutSeconds}s</td><td>{s.fssaiNumber ?? <span className="muted">—</span>}</td>
               <td><div className="row wrap">{s.status !== 'ACTIVE' && <button className="small ok" onClick={() => patch(s.id, { status: 'ACTIVE' })}>Activate</button>}{s.status === 'ACTIVE' && <button className="small danger" onClick={() => patch(s.id, { status: 'SUSPENDED' })}>Suspend</button>}</div></td></tr>
           ))}
@@ -271,7 +277,7 @@ function Devices() {
         <div className="table-wrap"><table><thead><tr><th>Asset tag</th><th>Model</th><th>Shop</th><th>Status</th><th>Last seen</th><th>Handover</th><th /></tr></thead><tbody>
           {d.data?.devices.map((x) => (
             <tr key={x.id}><td><b>{x.assetTag}</b></td><td>{x.model}</td><td><select value={x.shopId ?? ''} onChange={(e) => assign(x.id, e.target.value || null)} aria-label={`Assign ${x.assetTag}`}><option value="">Unassigned (in stock / returned)</option>{shops.data?.shops.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
-              <td><span className="badge info">{x.status}</span></td><td>{x.lastSeenAt ? <><span className={'badge ' + (x.online ? 'ok' : 'bad')}>{x.online ? 'online' : 'offline'}</span> <span className="small muted">{dt(x.lastSeenAt)}</span></> : <span className="muted">never</span>}</td><td className="small">{x.assignedAt ? `Loaned ${dt(x.assignedAt)}` : x.returnedAt ? `Returned ${dt(x.returnedAt)}` : '—'}</td><td /></tr>
+              <td><span className="badge info">{cap(x.status)}</span></td><td>{x.lastSeenAt ? <><span className={'badge ' + (x.online ? 'ok' : 'bad')}>{x.online ? 'online' : 'offline'}</span> <span className="small muted">{dt(x.lastSeenAt)}</span></> : <span className="muted">never</span>}</td><td className="small">{x.assignedAt ? `Loaned ${dt(x.assignedAt)}` : x.returnedAt ? `Returned ${dt(x.returnedAt)}` : '—'}</td><td /></tr>
           ))}</tbody></table></div></Section>
       <Section title="Register a tablet"><div className="row wrap"><input style={{ maxWidth: 180 }} placeholder="Asset tag e.g. JQ-TAB-003" value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Asset tag" /><input style={{ maxWidth: 240 }} placeholder="Model" value={model} onChange={(e) => setModel(e.target.value)} aria-label="Model" />
         <button className="primary" disabled={!tag} onClick={async () => { try { await api.post('/admin/devices', { assetTag: tag, model }); setTag(''); setModel(''); d.reload(); } catch (e) { setMsg(errMsg(e)); } }}>Register</button></div></Section>
@@ -318,11 +324,11 @@ function Payments() {
     <>
       <Section title="Payments (sandbox provider)"><Err msg={pay.err} />
         <div className="table-wrap"><table><thead><tr><th>Order</th><th>Provider ref</th><th>Amount</th><th>Refunded</th><th>Status</th><th>When</th></tr></thead><tbody>
-          {pay.data?.payments.map((p) => <tr key={p.id}><td><b>{p.orderNumber}</b></td><td className="mono">{p.providerRef}</td><td className="price">{formatPaise(p.amountPaise)}</td><td className="price">{formatPaise(p.refundedPaise)}</td><td><span className={'badge ' + tone(p.status)}>{p.status}</span></td><td>{dt(p.createdAt)}</td></tr>)}
+          {pay.data?.payments.map((p) => <tr key={p.id}><td><b>{p.orderNumber}</b></td><td className="mono">{p.providerRef}</td><td className="price">{formatPaise(p.amountPaise)}</td><td className="price">{formatPaise(p.refundedPaise)}</td><td><span className={'badge ' + tone(p.status)}>{pstatus(p.status)}</span></td><td>{dt(p.createdAt)}</td></tr>)}
         </tbody></table></div></Section>
       <Section title="Reconciliation (paid vs planned split)"><Err msg={rec.err} />
         <div className="table-wrap"><table><thead><tr><th>Order</th><th>Paid</th><th>Planned split</th><th>Refunded</th><th>Status</th><th>Check</th></tr></thead><tbody>
-          {rec.data?.rows.map((r) => <tr key={r.orderNumber}><td>{r.orderNumber}</td><td className="price">{formatPaise(r.paidPaise)}</td><td className="price">{formatPaise(r.plannedSplitPaise)}</td><td className="price">{formatPaise(r.refundedPaise)}</td><td>{r.paymentStatus}</td><td>{r.matches ? <span className="badge ok">matches</span> : <span className="badge bad">diff {formatPaise(r.differencePaise)}</span>}</td></tr>)}
+          {rec.data?.rows.map((r) => <tr key={r.orderNumber}><td>{r.orderNumber}</td><td className="price">{formatPaise(r.paidPaise)}</td><td className="price">{formatPaise(r.plannedSplitPaise)}</td><td className="price">{formatPaise(r.refundedPaise)}</td><td>{pstatus(r.paymentStatus)}</td><td>{r.matches ? <span className="badge ok">matches</span> : <span className="badge bad">diff {formatPaise(r.differencePaise)}</span>}</td></tr>)}
         </tbody></table></div><p className="muted small">Real settlement reports from a provider are not connected yet; settlement stays separate from payment success.</p></Section>
     </>
   );
@@ -336,7 +342,7 @@ function Support() {
   return (
     <Section title="Support requests"><Err msg={c.err || msg} />
       <div className="table-wrap"><table><thead><tr><th>Order</th><th>Category</th><th>Description</th><th>Status</th><th>Resolution</th><th /></tr></thead><tbody>
-        {c.data?.complaints.map((x) => <tr key={x.id}><td>{x.orderNumber}</td><td>{x.category}</td><td>{x.description}</td><td><span className={'badge ' + tone(x.status)}>{x.status}</span></td><td>{x.resolution}</td><td><div className="row wrap">{x.status !== 'IN_PROGRESS' && x.status !== 'RESOLVED' && <button className="small" onClick={() => set(x.id, 'IN_PROGRESS')}>Start</button>}{x.status !== 'RESOLVED' && <button className="small ok" onClick={() => set(x.id, 'RESOLVED')}>Resolve</button>}</div></td></tr>)}
+        {c.data?.complaints.map((x) => <tr key={x.id}><td>{x.orderNumber}</td><td>{x.category}</td><td>{x.description}</td><td><span className={'badge ' + tone(x.status)}>{cap(x.status)}</span></td><td>{x.resolution}</td><td><div className="row wrap">{x.status !== 'IN_PROGRESS' && x.status !== 'RESOLVED' && <button className="small" onClick={() => set(x.id, 'IN_PROGRESS')}>Start</button>}{x.status !== 'RESOLVED' && <button className="small ok" onClick={() => set(x.id, 'RESOLVED')}>Resolve</button>}</div></td></tr>)}
         {c.data?.complaints.length === 0 && <tr><td colSpan={6} className="muted">No support requests.</td></tr>}
       </tbody></table></div></Section>
   );

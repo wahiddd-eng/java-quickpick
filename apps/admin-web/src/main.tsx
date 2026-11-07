@@ -1,3 +1,4 @@
+import '@fontsource-variable/instrument-sans';
 import '@quickpick/shared/src/base.css';
 import './styles.css';
 import React from 'react';

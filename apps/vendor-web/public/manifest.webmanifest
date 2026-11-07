@@ -3,7 +3,7 @@
   "short_name": "QuickPick Vendor",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fbf7f2",
-  "theme_color": "#1f2937",
+  "background_color": "#f3f5f2",
+  "theme_color": "#14201a",
   "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
 }
