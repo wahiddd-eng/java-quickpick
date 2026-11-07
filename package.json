@@ -1,0 +1,33 @@
+{
+  "name": "java-quickpick",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Java QuickPick — campus food pre-order and scheduled pickup (SANDBOX MVP, real payments disabled)",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @quickpick/api",
+    "dev:student": "npm run dev -w @quickpick/student-web",
+    "dev:vendor": "npm run dev -w @quickpick/vendor-web",
+    "dev:admin": "npm run dev -w @quickpick/admin-web",
+    "db:migrate": "npm run migrate -w @quickpick/api",
+    "db:seed": "npm run seed -w @quickpick/api",
+    "test": "npm run test -w @quickpick/shared && npm run test -w @quickpick/api",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "build": "npm run typecheck && npm run build -w @quickpick/student-web && npm run build -w @quickpick/vendor-web && npm run build -w @quickpick/admin-web"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "globals": "^15.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
