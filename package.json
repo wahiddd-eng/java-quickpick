@@ -2,13 +2,14 @@
   "name": "java-quickpick",
   "private": true,
   "version": "0.1.0",
-  "description": "Java QuickPick — campus food pre-order and scheduled pickup (SANDBOX MVP, real payments disabled)",
+  "description": "Java QuickPick \u2014 campus food pre-order and scheduled pickup (SANDBOX MVP, real payments disabled)",
   "type": "module",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "scripts": {
+    "dev": "node scripts/dev-all.mjs",
     "dev:api": "npm run dev -w @quickpick/api",
     "dev:student": "npm run dev -w @quickpick/student-web",
     "dev:vendor": "npm run dev -w @quickpick/vendor-web",

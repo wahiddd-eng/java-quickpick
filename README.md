@@ -21,11 +21,10 @@ Needs Node 20+. No database install needed: without `DATABASE_URL` the API uses 
 ```bash
 npm install
 cp .env.example .env        # optional; sensible dev defaults exist
-npm run dev:api             # migrates, seeds demo data, starts on :4000
-npm run dev:student         # :5173
-npm run dev:vendor          # :5174
-npm run dev:admin           # :5175
+npm run dev                 # API (:4000) + student (:5173) + vendor (:5174) + admin (:5175)
 ```
+
+On macOS you can instead double-click **`Run QuickPick.command`**: it installs dependencies on first run, opens the folder in VS Code, starts everything and opens the three apps in your browser. In VS Code, *Terminal → Run Build Task* runs the same `npm run dev`. Individual apps: `npm run dev:api|dev:student|dev:vendor|dev:admin`.
 
 To use a real PostgreSQL instead, set `DATABASE_URL=postgres://…` and run `npm run db:migrate && npm run db:seed`.
 

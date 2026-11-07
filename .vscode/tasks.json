@@ -1,0 +1,8 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "QuickPick: run everything", "type": "shell", "command": "npm run dev", "isBackground": true, "problemMatcher": [], "group": { "kind": "build", "isDefault": true } },
+    { "label": "QuickPick: install", "type": "shell", "command": "npm install", "problemMatcher": [] },
+    { "label": "QuickPick: test", "type": "shell", "command": "npm test", "problemMatcher": [], "group": "test" }
+  ]
+}
