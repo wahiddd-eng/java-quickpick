@@ -184,3 +184,5 @@ export interface OrderView {
   createdAt: string;
   updatedAt: string;
 }
+
+export * from './client';
