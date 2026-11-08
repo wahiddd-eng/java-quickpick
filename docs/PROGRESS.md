@@ -1,11 +1,11 @@
 # Progress
 
-_Last updated: 2026-11-07_
+_Last updated: 2026-11-08_
 
 ## Done and verified
 
 - `npm run typecheck`, `npm run lint`, `npm run build` — clean.
-- `npm test` — **34 passing** (8 shared, 26 API) on in-memory Postgres with a fixed clock.
+- `npm test` — **35 passing** (8 shared, 27 API) on in-memory Postgres with a fixed clock.
 - Manual browser run (Playwright): student OTP → order → sandbox payment → vendor accept → preparing → ready → code handover → collected → admin sees timeline, fee, mock payment and split. No console errors.
 
 ### Required test areas (brief Section 23)
@@ -27,6 +27,11 @@ _Last updated: 2026-11-07_
 | 13 | Concurrent slot capacity | "lets exactly `capacity` of 10 simultaneous students reserve" + idempotency + pause |
 | 14 | Expiry & late success | expiry sweep; late success refunded; unanswered paid order refunded |
 | 15 | Vendor board survives missed sockets / RBAC | REST board without sockets; 401/403; super-admin-only pricing |
+
+### Since the first build
+
+- Redesigned student, shop-tablet and admin screens (shared palette and typeface).
+- Admins can edit every shop detail, including opening hours and slot length, with a live preview of pickup times.
 
 ## Known gaps (by design or next up)
 

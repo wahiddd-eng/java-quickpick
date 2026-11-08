@@ -427,6 +427,46 @@ describe('15. admin-only routes reject vendors, students and anonymous callers',
   });
 });
 
+describe('admin edits shop hours', () => {
+  it('rebuilds unbooked pickup times, keeps booked orders, and rejects impossible hours', async () => {
+    const created = await e.api.post('/api/v1/admin/shops').set(e.auth(admin)).send({ name: 'Demo Shop D', isDemo: true, openTime: '08:00', closeTime: '22:00', slotMinutes: 10, slotCapacity: 3 });
+    const shopId = created.body.shop.id;
+    await e.api.patch(`/api/v1/admin/shops/${shopId}`).set(e.auth(admin)).send({ status: 'ACTIVE' });
+    const item = await e.api.post(`/api/v1/admin/shops/${shopId}/menu-items`).set(e.auth(admin)).send({ name: 'Demo Idli', basePricePaise: 4000 });
+    const before = (await e.api.get(`/api/v1/shops/${shopId}/pickup-slots`)).body.slots as any[];
+    const noon = before.find((x) => x.startsAt === '2026-11-09T06:30:00.000Z'); // 12:00 IST
+    const evening = before.find((x) => x.startsAt === '2026-11-09T12:30:00.000Z'); // 18:00 IST
+    const s = await e.studentToken('hours@srmist.edu.in');
+    const order = await e.createOrder(s, shopId, noon.id, [{ menuItemId: item.body.item.id, quantity: 1 }]);
+    expect(order.status).toBe(201);
+
+    const upd = await e.api.patch(`/api/v1/admin/shops/${shopId}`).set(e.auth(admin)).send({ openTime: '12:00', closeTime: '14:00', slotMinutes: 15 });
+    expect(upd.status).toBe(200);
+    expect(upd.body.shop).toMatchObject({ openTime: '12:00', closeTime: '14:00', slotMinutes: 15 });
+
+    const after = (await e.api.get(`/api/v1/shops/${shopId}/pickup-slots`)).body.slots as any[];
+    expect(after.length).toBeGreaterThan(0);
+    for (const x of after) {
+      expect(new Date(x.endsAt).getTime() - new Date(x.startsAt).getTime()).toBe(15 * 60_000);
+      expect(x.startsAt >= '2026-11-09T06:30:00.000Z' && x.endsAt <= '2026-11-09T08:30:00.000Z').toBe(true);
+    }
+    expect(after.some((x) => x.id === noon.id)).toBe(false);
+    // Old times can no longer be booked; the booked order keeps its original time.
+    const oldBooked = await e.api.post('/api/v1/orders/quote').set(e.auth(s)).send({ shopId, slotId: noon.id, items: [{ menuItemId: item.body.item.id, quantity: 1 }] });
+    expect(oldBooked.status).toBe(409);
+    const oldFree = await e.api.post('/api/v1/orders/quote').set(e.auth(s)).send({ shopId, slotId: evening.id, items: [{ menuItemId: item.body.item.id, quantity: 1 }] });
+    expect(oldFree.status).toBe(404);
+    expect((await e.api.get(`/api/v1/orders/${order.body.order.id}`).set(e.auth(s))).body.order.slotStartsAt).toBe('2026-11-09T06:30:00.000Z');
+
+    const bad = await e.api.patch(`/api/v1/admin/shops/${shopId}`).set(e.auth(admin)).send({ closeTime: '11:00' });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe('INVALID_HOURS');
+    expect((await e.api.post('/api/v1/admin/shops').set(e.auth(admin)).send({ name: 'Bad', openTime: '15:00', closeTime: '09:00' })).status).toBe(400);
+    const still = (await e.api.get('/api/v1/admin/shops').set(e.auth(admin))).body.shops.find((x: any) => x.id === shopId);
+    expect(still.closeTime).toBe('14:00');
+  });
+});
+
 describe('admin onboarding, devices, analytics and export', () => {
   it('onboards a shop with a vendor and tablet, and the vendor is scoped to it', async () => {
     const shop = await e.api.post('/api/v1/admin/shops').set(e.auth(admin)).send({ name: 'Demo Shop C', isDemo: true, openTime: '08:00', closeTime: '22:00', slotCapacity: 4 });

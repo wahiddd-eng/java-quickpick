@@ -5,9 +5,15 @@ import { HttpError, audit, istDate, istDayRange, withTx, type AppContext } from 
 import { initiateRefund } from '../services/ledger.js';
 import { selectOrders } from '../services/orders.js';
 import { policyRowToView } from '../services/pricing.js';
+import { resetUnbookedSlots } from '../services/slots.js';
 
 const uuid = z.string().uuid();
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const toMins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+function checkHours(open: string, close: string, slotMinutes: number) {
+  if (toMins(close) <= toMins(open)) throw new HttpError(400, 'INVALID_HOURS', 'Closing time must be after opening time.');
+  if (toMins(close) - toMins(open) < slotMinutes) throw new HttpError(400, 'INVALID_HOURS', 'Opening hours must be at least one pickup slot long.');
+}
 
 const shopFields = {
   name: z.string().min(1).max(100),
@@ -77,6 +83,7 @@ export function adminRoutes(ctx: AppContext): Router {
           isDemo: shopFields.isDemo.default(false),
         })
         .parse(req.body);
+      checkHours(b.openTime, b.closeTime, b.slotMinutes);
       const shop = await withTx(ctx, async (tx) => {
         const [s] = await tx.q.query(
           `INSERT INTO shops (name, description, open_time, close_time, slot_minutes, slot_capacity, accept_timeout_seconds, fssai_number, owner_contact, is_demo)
@@ -106,9 +113,14 @@ export function adminRoutes(ctx: AppContext): Router {
         sets.push(`${cols[k]}=$${params.length}`);
       }
       if (sets.length === 0) throw new HttpError(400, 'NO_CHANGES', 'Nothing to update');
+      const hoursChanged = b.openTime !== undefined || b.closeTime !== undefined || b.slotMinutes !== undefined;
       const shop = await withTx(ctx, async (tx) => {
         const rows = await tx.q.query(`UPDATE shops SET ${sets.join(', ')} WHERE id=$1 RETURNING *`, params);
         if (!rows[0]) throw new HttpError(404, 'SHOP_NOT_FOUND', 'Shop not found');
+        if (hoursChanged) {
+          checkHours(rows[0].open_time, rows[0].close_time, rows[0].slot_minutes);
+          await resetUnbookedSlots(ctx, tx.q, req.params.shopId);
+        }
         // Capacity changes apply to future slots that stay at or above what is already reserved.
         if (b.slotCapacity !== undefined) {
           await tx.q.query(`UPDATE pickup_slots SET capacity=$2 WHERE shop_id=$1 AND starts_at > $3 AND reserved_count <= $2`, [req.params.shopId, b.slotCapacity, ctx.now()]);

@@ -50,7 +50,7 @@ To use a real PostgreSQL instead, set `DATABASE_URL=postgres://…` and run `npm
 ```bash
 npm run typecheck   # all workspaces
 npm run lint
-npm test            # 8 shared + 26 API tests (in-memory Postgres, fixed clock)
+npm test            # 8 shared + 27 API tests (in-memory Postgres, fixed clock)
 npm run build       # typecheck + production builds of the three apps
 ```
 

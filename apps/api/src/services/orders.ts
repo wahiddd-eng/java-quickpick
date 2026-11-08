@@ -4,7 +4,7 @@ import { HttpError, withTx, type AppContext, type Tx } from '../context.js';
 import type { Queryable } from '../db.js';
 import { initiateRefund, type Actor } from './ledger.js';
 import { getActivePolicy } from './pricing.js';
-import { releaseSlot, reserveSlot } from './slots.js';
+import { releaseSlot, reserveSlot, slotMatchesShop } from './slots.js';
 
 export interface QuoteInput {
   shopId: string;
@@ -44,6 +44,7 @@ export async function buildQuote(ctx: AppContext, q: Queryable, input: QuoteInpu
   const slots = await q.query(`SELECT * FROM pickup_slots WHERE id=$1 AND shop_id=$2`, [input.slotId, input.shopId]);
   const slot = slots[0];
   if (!slot) throw new HttpError(404, 'SLOT_NOT_FOUND', 'Pickup slot not found for this shop');
+  if (!slotMatchesShop(shop, slot)) throw new HttpError(409, 'SLOT_UNAVAILABLE', 'That pickup time is no longer offered. Please choose another time.');
   if (new Date(slot.starts_at).getTime() < ctx.now().getTime() + ctx.config.minLeadMinutes * 60_000) {
     throw new HttpError(409, 'SLOT_UNAVAILABLE', 'That pickup time has passed or is too soon');
   }

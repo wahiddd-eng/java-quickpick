@@ -20,6 +20,19 @@ export function slotWindows(date: string, open: string, close: string, minutes: 
   return out;
 }
 
+/** True when a stored slot still matches the shop's current hours and slot length (hours can be edited mid-day). */
+export function slotMatchesShop(shop: any, slot: { starts_at: Date | string; ends_at: Date | string }): boolean {
+  const start = new Date(slot.starts_at).getTime();
+  const end = new Date(slot.ends_at).getTime();
+  const day = istDate(new Date(start));
+  return slotWindows(day, shop.open_time, shop.close_time, shop.slot_minutes).some((w) => w.start.getTime() === start && w.end.getTime() === end);
+}
+
+/** Drop future slots nobody has booked so they are rebuilt from new hours. Booked slots stay for their orders. */
+export async function resetUnbookedSlots(ctx: AppContext, q: Queryable, shopId: string): Promise<void> {
+  await q.query(`DELETE FROM pickup_slots WHERE shop_id=$1 AND starts_at > $2 AND reserved_count = 0`, [shopId, ctx.now()]);
+}
+
 /** Lazily materialise the day's slots from the shop's configuration. Existing slots are never touched. */
 export async function ensureSlots(q: Queryable, shop: any, date: string): Promise<void> {
   const windows = slotWindows(date, shop.open_time, shop.close_time, shop.slot_minutes);
@@ -47,7 +60,7 @@ export async function listAvailableSlots(ctx: AppContext, q: Queryable, shop: an
     `SELECT * FROM pickup_slots WHERE shop_id=$1 AND starts_at >= $2 AND starts_at >= $3 AND starts_at < $4 ORDER BY starts_at`,
     [shop.id, earliest, dayStart, dayEnd],
   );
-  return rows.map((s) => ({
+  return rows.filter((s) => slotMatchesShop(shop, s)).map((s) => ({
     id: s.id,
     startsAt: s.starts_at,
     endsAt: s.ends_at,

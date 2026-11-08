@@ -44,7 +44,7 @@ Base: `/api/v1`. JSON. Auth: `Authorization: Bearer <jwt>`. Money in integer **p
 
 | Method & path | Notes |
 |---|---|
-| GET/POST `/admin/shops`, PATCH `/admin/shops/:id` | onboarding, status, capacity, hours |
+| GET/POST `/admin/shops`, PATCH `/admin/shops/:id` | onboarding and editing: name, description, hours, slot length, capacity, accept timeout, FSSAI, owner contact, status, taking orders. Closing must be after opening (400 `INVALID_HOURS`). Changing hours or slot length rebuilds future unbooked slots; booked slots keep their orders but can't be booked again |
 | GET/POST `/admin/vendors` `{name,email,password,shopId}` | |
 | GET `/admin/shops/:id/menu`, POST `/admin/shops/:id/categories`, POST `/admin/shops/:id/menu-items`, PATCH `/admin/menu-items/:id` | |
 | GET/POST `/admin/devices`, POST `/admin/devices/assign` `{deviceId, shopId\|null}` | loan / return |
